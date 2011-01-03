@@ -1,0 +1,6 @@
+addtype text/vnd.wap.wml wml
+addtype application/vnd.wap.wmlc wmlc
+addtype image/vnd.wap.wbmp wbmp
+addtype text/vnd.wap.wmlscript wmls
+addtype application/vnd.wap.wmlscriptc wmlsc
+addtype application/vnd.wap.xhtml+xml xhtml

@@ -1,0 +1,79 @@
+body {
+	padding: 0px;
+	margin: 0px;
+	text-align: center;
+	font-family: "Lucida Grande", Verdana, Geneva, Lucida, Arial, Helvetica, sans-serif;
+}
+
+h1,h2,h3,h4,h5,h6 {
+	font-family: georgia, palatino, "Times New Roman", times, serif;
+}
+
+form {
+	margin: 0;
+	padding: 0;
+}
+
+input {
+	border-top: 1px solid #555555;
+	border-left: 1px solid #555555;
+	border-bottom: 1px solid #cccccc;
+	border-right: 1px solid #cccccc;
+	padding: 1px;
+	color: #333333;
+}
+
+input.submit {
+	border: 1px solid #333333;
+	padding: 2px 1em;
+	background: #555555;
+	color: #ffffff;
+}
+
+select {
+	padding: 1px;
+}
+
+input:focus, select:focus, textarea:focus {
+	background: #ffffaa;
+	color: #000000;
+}
+
+input.submit:focus {
+	background: #555555;
+	color: #ffffff;
+}
+
+#wrapper {
+	margin: 0 auto 0 auto;
+	width: 760px;
+	text-align: left;
+}
+
+#masthead {
+	text-align: right;
+}
+
+#masthead h1 {
+	margin-bottom: 0;
+	padding-bottom: 0;
+}
+
+#masthead p {
+	margin-top: 0;
+	padding-top: 0;
+}
+
+form.radio_search {
+	text-align: center;
+}
+
+#results .odd {
+	background: #dedede;
+	color: inherit;
+}
+
+#results .even {
+	background: #eeeeee;
+	color: inherit;
+}
