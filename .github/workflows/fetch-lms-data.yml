@@ -1,0 +1,32 @@
+name: Fetch LMS raw data (smoke test)
+
+# Manual trigger for now, while this is just proving out the fetch step.
+# Once parsing/partitioning exists, this becomes the first stage of the
+# scheduled data-refresh workflow.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Fetch LMS tables via headless browser
+        run: python scripts/fetch_lms_data.py
+
+      - name: Upload raw data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lms-raw-data
+          path: raw_lms/
+          retention-days: 7
