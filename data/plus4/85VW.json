@@ -1,1 +1,1 @@
-[{"callsign":"KDKT","service":"AM","frequency":"1410","city":"BEULAH","state":"ND","lat":47.2875,"lon":-101.762778,"directional":false,"source":"cdbs","power_day_kw":1.0,"power_night_kw":189.0}]
+[{"callsign":"KDKT","service":"AM","frequency":"1410","city":"BEULAH","state":"ND","lat":47.2875,"lon":-101.762778,"directional":false,"source":"cdbs","power_day_kw":1.0,"power_night_kw":189.0,"range_day_km":[500,500,500,500,500,313.9,311.4,307.5,300.3,287.2,264.4,225.3,162.2],"range_night_km":[500,500,500,500,500,500,500,500,500,500,312.8,310.3,305.0]}]
