@@ -6,14 +6,17 @@ CDBS was frozen on 2023-10-01, so unlike the LMS fetch this does not need
 to run on a schedule - once fetched, it never changes.
 
 Unlike the LMS host, ftp.fcc.gov is NOT behind Akamai (verified: no
-akamai-grn/AkamaiGHost headers, and a plain HEAD request succeeds where
-enterpriseefiling.fcc.gov's plain HTTP clients get a 403). The other
-mirror, transition.fcc.gov, IS behind Akamai and blocks headless
-Chromium outright (unlike the LMS host's WAF rule, which only blocks
-plain HTTP clients) - confirmed with a fresh GitHub Actions runner
-getting an instant 403 there, so this isn't a session/IP reputation
-thing, it's just a stricter rule. Plain urllib against ftp.fcc.gov is
-the simpler and more reliable path.
+akamai-grn/AkamaiGHost headers). The other mirror, transition.fcc.gov,
+IS behind Akamai and blocks headless Chromium outright (unlike the LMS
+host's WAF rule, which only blocks plain HTTP clients) - confirmed with
+a fresh GitHub Actions runner getting an instant 403 there.
+
+ftp.fcc.gov's HTTPS gateway turned out to be broken for GET specifically
+(HEAD succeeds, GET hangs/times out) - confirmed across three unrelated
+networks. The underlying FTP service itself is fine over plain ftp://
+(verified instant with curl) - but Python's own urllib/ftplib FTP
+support hung indefinitely against this same server, so this shells out
+to curl rather than trusting urllib's FTP handling.
 
 Only the AM-side tables (am_eng_data, am_ant_sys) have been verified
 against real records. fm_eng_data's schema is confirmed from the CDBS
@@ -21,11 +24,11 @@ DDL but hasn't been byte-verified yet - worth a spot check the first
 time this actually runs successfully.
 """
 import os
+import subprocess
 import sys
-import urllib.request
 import zipfile
 
-BASE = "https://ftp.fcc.gov/pub/Bureaus/MB/Databases/cdbs"
+BASE = "ftp://ftp.fcc.gov/pub/Bureaus/MB/Databases/cdbs"
 
 TABLES = [
     "am_eng_data",
@@ -39,9 +42,10 @@ OUT_DIR = os.environ.get("CDBS_RAW_DIR", "raw_cdbs")
 def download_table(table):
     url = f"{BASE}/{table}.zip"
     zip_path = os.path.join(OUT_DIR, f"{table}.zip")
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=120) as resp, open(zip_path, "wb") as f:
-        f.write(resp.read())
+    subprocess.run(
+        ["curl", "-sS", "--fail", "--max-time", "120", url, "-o", zip_path],
+        check=True,
+    )
     with zipfile.ZipFile(zip_path) as zf:
         zf.extractall(OUT_DIR)
     os.remove(zip_path)

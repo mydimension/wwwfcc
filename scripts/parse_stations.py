@@ -310,20 +310,28 @@ def resolve_fm(facility, app_location_idx, app_antenna_idx, cdbs_fm_eng_idx):
             "source": source,
         }
 
-    # CDBS backfill
+    # CDBS backfill. Facilities often carry multiple rows here (one per
+    # historical application) - eng_record_type 'C' (current/licensed) is
+    # the authoritative one; 'A' (application) rows are kept only as a
+    # fallback for facilities that somehow have no 'C' row.
     rows = cdbs_fm_eng_idx.get(facility["facility_id"])
     if not rows:
         return None
-    r = rows[0]
+    r = next((row for row in rows if row[19] == "C"), rows[0])
     lat = dms_to_decimal(r[30], r[32], r[33], r[31])
     lon = dms_to_decimal(r[34], r[36], r[37], r[35])
     if lat is None or lon is None:
         return None
+    # effective_erp is frequently blank; horiz_erp is the field that's
+    # actually populated in practice (verified against real records).
+    erp = to_float(r[16])
+    if erp is None:
+        erp = to_float(r[29])
     return {
         "lat": lat,
         "lon": lon,
         "directional": False,  # not tracked in this CDBS table
-        "erp_kw": to_float(r[16]),
+        "erp_kw": erp,
         "haat_m": to_float(r[23]),
         "source": "cdbs",
     }
