@@ -15,6 +15,13 @@ Field strength is exactly proportional to sqrt(power) for fixed
 frequency/ground/geometry (linear system), so this computes one
 reference curve per distinct AM frequency at a reference power, then
 scales per station - avoiding one GRWAVE run per station.
+
+Known gap: the curve's closest computed point is 10km out (DSTEP_KM's
+first step), so very high thresholds (>=~60 dBu for a typical station)
+that are only crossed within 10km of the transmitter come back as null
+even though they're obviously true in reality - not a practical concern
+for "can I receive this station" at any normal distance, but worth
+knowing if these numbers ever get used for something near-field.
 """
 import math
 
