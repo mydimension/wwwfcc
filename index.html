@@ -38,6 +38,14 @@
       </div>
 
       <div class="control">
+        <label for="location-search">Or enter a location</label>
+        <form id="location-search-form" class="search-row">
+          <input type="text" id="location-search" placeholder="City, address, or ZIP" autocomplete="off">
+          <button type="submit" id="search-btn">Go</button>
+        </form>
+      </div>
+
+      <div class="control">
         <label for="threshold">Reception threshold</label>
         <input type="range" id="threshold" step="1">
         <div id="threshold-label" class="muted"></div>

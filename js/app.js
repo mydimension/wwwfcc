@@ -70,6 +70,8 @@ const thresholdInput = document.getElementById("threshold");
 const thresholdLabel = document.getElementById("threshold-label");
 const dayNightInput = document.getElementById("day-night");
 const locateBtn = document.getElementById("locate-btn");
+const locationSearchForm = document.getElementById("location-search-form");
+const locationSearchInput = document.getElementById("location-search");
 
 thresholdInput.min = THRESHOLD_MIN_DBU;
 thresholdInput.max = THRESHOLD_MAX_DBU;
@@ -88,6 +90,10 @@ dayNightInput.addEventListener("change", () => {
 });
 locateBtn.addEventListener("click", () => locate());
 map.on("click", (e) => setLocation(e.latlng.lat, e.latlng.lng));
+locationSearchForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  searchLocation(locationSearchInput.value);
+});
 
 function updateThresholdLabel() {
   let desc = "Fringe";
@@ -108,6 +114,27 @@ function locate() {
     () => setStatus("Location permission denied - click the map to set a location instead."),
     { enableHighAccuracy: false, timeout: 10000 }
   );
+}
+
+// Nominatim (OpenStreetMap) geocoding - free, no API key, but rate-limited
+// to 1 req/sec and requires attribution; fine for this app's low traffic.
+async function searchLocation(query) {
+  const q = query.trim();
+  if (!q) return;
+  setStatus("Looking up location...");
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error("geocoding request failed");
+    const results = await resp.json();
+    if (results.length === 0) {
+      setStatus(`Couldn't find "${q}" - try a different search or click the map.`);
+      return;
+    }
+    await setLocation(Number(results[0].lat), Number(results[0].lon));
+  } catch {
+    setStatus("Location lookup failed - try again or click the map to set a location.");
+  }
 }
 
 async function setLocation(lat, lon) {
@@ -153,7 +180,7 @@ async function ensureCoverage(lat, lon, radiusKm) {
 function render() {
   stationLayer.clearLayers();
   if (state.userLat == null) {
-    setStatus("Click the map or use “Use my location” to see what you can receive.");
+    setStatus("Click the map, search a location, or use “Use my location” to see what you can receive.");
     listEl.innerHTML = "";
     return;
   }
@@ -206,5 +233,6 @@ function setStatus(text) {
   statusEl.textContent = text;
 }
 
-// Try geolocation automatically on load; falls back to manual map click.
-locate();
+// Browser geolocation is only requested when the user clicks "Use my
+// location" - not automatically on load. Show the default prompt instead.
+render();

@@ -94,6 +94,29 @@ header h1 {
   width: 100%;
 }
 
+.search-row {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+}
+
+.search-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
+.search-row button {
+  width: auto;
+  flex-shrink: 0;
+  padding: 8px 14px;
+}
+
 button {
   width: 100%;
   padding: 10px;
