@@ -1,0 +1,1 @@
+[{"callsign":"KNSA","service":"AM","frequency":"930","city":"UNALAKLEET","state":"AK","lat":63.888056,"lon":-160.691389,"directional":false,"source":"cdbs","power_day_kw":4.2,"power_night_kw":4.2},{"callsign":"KLIU","service":"FM","frequency":"89.9","city":"UNALAKLEET","state":"AK","lat":63.872222,"lon":-160.7905,"directional":false,"source":"lms","erp_kw":0.5,"haat_m":-24.0}]

@@ -1,0 +1,1 @@
+[{"callsign":"KNLV","service":"AM","frequency":"1060","city":"ORD","state":"NE","lat":41.571111,"lon":-98.924722,"directional":false,"source":"cdbs","power_day_kw":1.0,"power_night_kw":0.023},{"callsign":"KSYZ-FM","service":"FM","frequency":"107.7","city":"GRAND ISLAND","state":"NE","lat":41.153611,"lon":-98.727306,"directional":false,"source":"lms","erp_kw":28.5,"haat_m":280.0}]

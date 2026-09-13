@@ -1,0 +1,1 @@
+[{"callsign":"KLAM","service":"AM","frequency":"1450","city":"CORDOVA","state":"AK","lat":60.538889,"lon":-145.759722,"directional":false,"source":"cdbs","power_day_kw":0.25,"power_night_kw":0.25},{"callsign":"KCDV","service":"FM","frequency":"100.9","city":"CORDOVA","state":"AK","lat":60.538333,"lon":-145.761694,"directional":false,"source":"lms","erp_kw":null,"haat_m":-127.0}]

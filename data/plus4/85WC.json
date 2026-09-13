@@ -1,0 +1,1 @@
+[{"callsign":"KSEN","service":"AM","frequency":"1150.0","city":"SHELBY","state":"MT","lat":48.481083,"lon":-111.88475,"directional":true,"source":"lms","power_day_kw":10.0,"power_night_kw":5.0},{"callsign":"KHSI","service":"FM","frequency":"89.7","city":"CONRAD","state":"MT","lat":48.130611,"lon":-111.919806,"directional":false,"source":"lms","erp_kw":1.0,"haat_m":51.0}]

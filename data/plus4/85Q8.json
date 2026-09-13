@@ -1,0 +1,1 @@
+[{"callsign":"KSRA-FM","service":"FM","frequency":"92.7","city":"SALMON","state":"ID","lat":45.183889,"lon":-113.87,"directional":false,"source":"cdbs","erp_kw":1.5,"haat_m":-268.0},{"callsign":"KSRA","service":"AM","frequency":"960","city":"SALMON","state":"ID","lat":45.183889,"lon":-113.87,"directional":false,"source":"cdbs","power_day_kw":1.0,"power_night_kw":0.056}]
