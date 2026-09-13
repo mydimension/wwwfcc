@@ -33,16 +33,26 @@ OUT_DIR = os.environ.get("CDBS_RAW_DIR", "raw_cdbs")
 
 
 async def download_table(page, table):
+    """Unlike the LMS host, transition.fcc.gov doesn't send
+    Content-Disposition: attachment for these files, so navigating to
+    the URL just renders the response inline instead of firing a
+    'download' event. Grab the response body directly instead - but
+    still via page.goto (not context.request), since a real page
+    navigation is what gets past this host's bot protection; a raw
+    request-style fetch gets 403'd here even from a browser context.
+    """
     url = f"{BASE}/{table}.zip"
     zip_path = os.path.join(OUT_DIR, f"{table}.zip")
-    async with page.expect_download(timeout=120000) as dl_info:
-        try:
-            await page.goto(url, timeout=120000)
-        except Exception:
-            pass
-    download = await dl_info.value
-    tmp_path = await download.path()
-    shutil.copy(tmp_path, zip_path)
+    response = await page.goto(url, timeout=120000)
+    if response is None:
+        raise RuntimeError(f"no response for {table}")
+    if response.status != 200:
+        raise RuntimeError(
+            f"unexpected status {response.status} for {table}: {await response.text()}"
+        )
+    body = await response.body()
+    with open(zip_path, "wb") as f:
+        f.write(body)
     with zipfile.ZipFile(zip_path) as zf:
         zf.extractall(OUT_DIR)
     os.remove(zip_path)
