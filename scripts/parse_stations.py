@@ -225,6 +225,18 @@ def resolve_am(facility, app_am_antenna_idx, cdbs_am_eng_idx, cdbs_am_ant_sys_id
         rows = []
         for app_id in cdbs_am_eng_idx.get(facility["facility_id"], []):
             rows.extend(cdbs_am_ant_sys_idx.get(app_id, []))
+        # Facilities carry one row per historical application here, same as
+        # fm_eng_data - eng_record_type 'C' (current/licensed) is the
+        # authoritative one; 'A' (archived/superseded) rows are kept only as
+        # a fallback for facilities that somehow have no 'C' row. Without
+        # this filter, an old superseded application's power/mode silently
+        # overwrites the current licensed value below, since rows from the
+        # facility's entire CDBS history are merged together (verified
+        # against WBZ 1030 Boston: a 2003 10kW application was clobbering
+        # the current 50kW license).
+        current_rows = [r for r in rows if len(r) > 27 and r[27] == "C"]
+        if current_rows:
+            rows = current_rows
     if not rows:
         return None
 
