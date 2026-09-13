@@ -34,19 +34,21 @@ DSTEP_KM = 5
 
 # Thresholds to precompute, in dBu (dB above 1 uV/m) - same unit FM
 # uses, so the frontend can expose one unified threshold control.
-# mV/m <-> dBu: dBu = 60 + 20*log10(mV_per_m)
 THRESHOLDS_DBU = list(range(20, 85, 5))
-
-
-def mv_per_m_to_dbu(mv_per_m):
-    if mv_per_m <= 0:
-        return -math.inf
-    return 60 + 20 * math.log10(mv_per_m)
 
 
 def reference_curve_km_vs_dbu(freq_khz):
     """Run GRWAVE once for this frequency at the reference power.
-    Returns sorted list of (distance_km, field_strength_dbu)."""
+    Returns sorted list of (distance_km, field_strength_dbu).
+
+    grwave's "fs" column is already field strength in dBu (dB above
+    1 uV/m) at the given txwatt - not mV/m as an early draft of this
+    module assumed (verified against raw output: e.g. ~42 dBu at 10km
+    for 1kW/770kHz over medium-dry ground, decaying smoothly to ~0 dBu
+    around 470km - a physically sane curve, whereas treating those
+    numbers as mV/m and reconverting produced an inflated, saturated
+    curve that never dropped below any realistic threshold).
+    """
     df = grwave({
         "freqMHz": freq_khz / 1000.0,
         "sigma": GROUND_SIGMA_S_M,
@@ -59,9 +61,8 @@ def reference_curve_km_vs_dbu(freq_khz):
     })
     points = []
     for dist_km, row in df.iterrows():
-        fs = row["fs"]
-        if dist_km > 0 and fs > 0:
-            points.append((float(dist_km), mv_per_m_to_dbu(float(fs))))
+        if dist_km > 0:
+            points.append((float(dist_km), float(row["fs"])))
     points.sort()
     return points
 
