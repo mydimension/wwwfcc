@@ -33,6 +33,9 @@ jobs:
       - name: Fetch CDBS tables (frozen legacy backfill)
         run: python scripts/fetch_cdbs_data.py
 
+      - name: DEBUG grwave output (temporary)
+        run: python scripts/debug_grwave.py
+
       - name: Parse and partition into Plus Code files
         run: python scripts/parse_stations.py
 
