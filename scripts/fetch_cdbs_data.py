@@ -3,25 +3,29 @@ have no matching engineering record in LMS (see parse_stations.py for why
 that happens - roughly 54% of licensed AM and 29% of licensed FM stations).
 
 CDBS was frozen on 2023-10-01, so unlike the LMS fetch this does not need
-to run on a schedule - once fetched, it never changes. It's still run
-through a headless browser because transition.fcc.gov sits behind the
-same kind of Akamai bot protection as the LMS host, and plain HTTP
-clients get a 403 there too.
+to run on a schedule - once fetched, it never changes.
+
+Unlike the LMS host, ftp.fcc.gov is NOT behind Akamai (verified: no
+akamai-grn/AkamaiGHost headers, and a plain HEAD request succeeds where
+enterpriseefiling.fcc.gov's plain HTTP clients get a 403). The other
+mirror, transition.fcc.gov, IS behind Akamai and blocks headless
+Chromium outright (unlike the LMS host's WAF rule, which only blocks
+plain HTTP clients) - confirmed with a fresh GitHub Actions runner
+getting an instant 403 there, so this isn't a session/IP reputation
+thing, it's just a stricter rule. Plain urllib against ftp.fcc.gov is
+the simpler and more reliable path.
 
 Only the AM-side tables (am_eng_data, am_ant_sys) have been verified
 against real records. fm_eng_data's schema is confirmed from the CDBS
 DDL but hasn't been byte-verified yet - worth a spot check the first
-time this actually runs somewhere with reliable network access to this
-host.
+time this actually runs successfully.
 """
-import asyncio
 import os
-import shutil
 import sys
+import urllib.request
 import zipfile
-from playwright.async_api import async_playwright
 
-BASE = "http://transition.fcc.gov/Bureaus/MB/Databases/cdbs"
+BASE = "https://ftp.fcc.gov/pub/Bureaus/MB/Databases/cdbs"
 
 TABLES = [
     "am_eng_data",
@@ -32,27 +36,12 @@ TABLES = [
 OUT_DIR = os.environ.get("CDBS_RAW_DIR", "raw_cdbs")
 
 
-async def download_table(page, table):
-    """Unlike the LMS host, transition.fcc.gov doesn't send
-    Content-Disposition: attachment for these files, so navigating to
-    the URL just renders the response inline instead of firing a
-    'download' event. Grab the response body directly instead - but
-    still via page.goto (not context.request), since a real page
-    navigation is what gets past this host's bot protection; a raw
-    request-style fetch gets 403'd here even from a browser context.
-    """
+def download_table(table):
     url = f"{BASE}/{table}.zip"
     zip_path = os.path.join(OUT_DIR, f"{table}.zip")
-    response = await page.goto(url, timeout=120000)
-    if response is None:
-        raise RuntimeError(f"no response for {table}")
-    if response.status != 200:
-        raise RuntimeError(
-            f"unexpected status {response.status} for {table}: {await response.text()}"
-        )
-    body = await response.body()
-    with open(zip_path, "wb") as f:
-        f.write(body)
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=120) as resp, open(zip_path, "wb") as f:
+        f.write(resp.read())
     with zipfile.ZipFile(zip_path) as zf:
         zf.extractall(OUT_DIR)
     os.remove(zip_path)
@@ -60,24 +49,19 @@ async def download_table(page, table):
     print(f"fetched {table}: {os.path.getsize(dat_path)} bytes")
 
 
-async def main():
+def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(accept_downloads=True)
-        page = await context.new_page()
-        failures = []
-        for table in TABLES:
-            try:
-                await download_table(page, table)
-            except Exception as e:
-                print(f"FAILED {table}: {e!r}")
-                failures.append(table)
-        await browser.close()
+    failures = []
+    for table in TABLES:
+        try:
+            download_table(table)
+        except Exception as e:
+            print(f"FAILED {table}: {e!r}")
+            failures.append(table)
     if failures:
         print(f"Failed tables: {failures}")
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
