@@ -10,7 +10,6 @@ Context for working in this repo that isn't derivable from reading the source. C
 
 ## Access requirements for this repo
 
-- **Git push/fetch over SSH requires a physical YubiKey tap.** Warn before any push/pull, don't just run it silently - a push can hang waiting for a tap nobody knew to give, and it's easy to mistake for a broken credential instead. Also: a YubiKey touch will sometimes emit an OTP string via keystroke injection into whatever has focus (including a chat input) if it's tapped while not focused on an actual auth prompt - garbled text mid-conversation is probably that, not a real message.
 - **`gh` CLI may or may not be on PATH** depending on the environment - check before assuming it's available for triggering workflows or checking run status.
 - The `build-station-data` workflow needs `gfortran`, `cmake`, and `ninja-build` (installed via `apt-get` in the workflow itself) to compile GRWAVE's Fortran binary. This can't be tested in an environment without those - there's no pure-Python fallback.
 
