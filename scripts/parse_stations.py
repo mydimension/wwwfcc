@@ -418,6 +418,12 @@ def main():
         with open(os.path.join(OUT_DIR, f"{key}.json"), "w") as f:
             json.dump(records, f, separators=(",", ":"))
 
+    # Lets the frontend skip fetching cells it knows don't exist (most
+    # of the US land area has no AM/FM transmitter in a given 1x1
+    # degree cell) instead of hitting a 404 for every empty neighbor.
+    with open(os.path.join(OUT_DIR, "manifest.json"), "w") as f:
+        json.dump(sorted(partitions.keys()), f)
+
     total = sum(len(v) for v in partitions.values())
     print(f"Wrote {len(partitions)} partition files, {total} stations total")
 
