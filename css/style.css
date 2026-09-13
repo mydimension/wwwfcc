@@ -43,6 +43,23 @@ header h1 {
   font-size: 0.9rem;
 }
 
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#github-link {
+  color: var(--fg);
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+#github-link:hover {
+  opacity: 1;
+}
+
 #layout {
   display: flex;
   height: calc(100% - 64px);
