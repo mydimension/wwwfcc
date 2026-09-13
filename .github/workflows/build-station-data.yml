@@ -1,0 +1,46 @@
+name: Build station data
+
+# Manual trigger for now, while the frontend that consumes this data
+# doesn't exist yet and refresh cadence hasn't been decided. Becomes a
+# scheduled job once both of those are settled.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Fetch LMS tables (current data, refreshed daily upstream)
+        run: python scripts/fetch_lms_data.py
+
+      - name: Fetch CDBS tables (frozen legacy backfill)
+        run: python scripts/fetch_cdbs_data.py
+
+      - name: Parse and partition into Plus Code files
+        run: python scripts/parse_stations.py
+
+      - name: Commit updated station data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/plus4
+          if git diff --cached --quiet; then
+            echo "No changes to station data."
+          else
+            git commit -m "Refresh station data"
+            git push
+          fi
