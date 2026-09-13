@@ -19,6 +19,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Fortran build toolchain (for grwave)
+        run: sudo apt-get update && sudo apt-get install -y gfortran cmake ninja-build
+
       - name: Install dependencies
         run: |
           pip install -r scripts/requirements.txt

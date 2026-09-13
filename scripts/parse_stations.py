@@ -45,6 +45,8 @@ from collections import defaultdict
 
 from openlocationcode import openlocationcode as olc
 
+import am_groundwave
+
 LMS_DIR = os.environ.get("LMS_RAW_DIR", "raw_lms")
 CDBS_DIR = os.environ.get("CDBS_RAW_DIR", "raw_cdbs")
 OUT_DIR = os.environ.get("STATION_OUT_DIR", "data/plus4")
@@ -355,6 +357,7 @@ def main():
     partitions = defaultdict(list)
     stats = {"am_lms": 0, "am_cdbs": 0, "am_miss": 0,
               "fm_lms": 0, "fm_cdbs": 0, "fm_miss": 0}
+    am_reference_curves = {}  # freq_khz -> reference_points, computed once per channel
 
     for facility in facilities.values():
         if facility["service"] == "AM":
@@ -387,6 +390,21 @@ def main():
         if facility["service"] == "AM":
             record["power_day_kw"] = resolved["power_day_kw"]
             record["power_night_kw"] = resolved["power_night_kw"]
+
+            freq_khz = to_float(facility["frequency"])
+            if freq_khz is not None:
+                if freq_khz not in am_reference_curves:
+                    am_reference_curves[freq_khz] = \
+                        am_groundwave.reference_curve_km_vs_dbu(freq_khz)
+                curve = am_reference_curves[freq_khz]
+                day_ranges = am_groundwave.range_at_thresholds(
+                    curve, resolved["power_day_kw"])
+                night_ranges = am_groundwave.range_at_thresholds(
+                    curve, resolved["power_night_kw"])
+                record["range_day_km"] = [
+                    day_ranges.get(t) for t in am_groundwave.THRESHOLDS_DBU]
+                record["range_night_km"] = [
+                    night_ranges.get(t) for t in am_groundwave.THRESHOLDS_DBU]
         else:
             record["erp_kw"] = resolved["erp_kw"]
             record["haat_m"] = resolved["haat_m"]
