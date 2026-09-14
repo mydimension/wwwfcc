@@ -11,7 +11,6 @@ Context for working in this repo that isn't derivable from reading the source. C
 ## Access requirements for this repo
 
 - **`gh` CLI may or may not be on PATH** depending on the environment - check before assuming it's available for triggering workflows or checking run status.
-- The `build-station-data` workflow needs `gfortran`, `cmake`, and `ninja-build` (installed via `apt-get` in the workflow itself) to compile GRWAVE's Fortran binary. This can't be tested in an environment without those - there's no pure-Python fallback.
 
 ## Map tiles: why Esri, not the more obvious choices
 
@@ -44,9 +43,18 @@ There's no automated test suite yet. These were spot-checked by hand against rea
 | WKTU (103.5, NYC) | FM | LMS | 8.5kW ERP, 415m HAAT, non-directional, Empire State Building site |
 | WMOC (88.7, Lumber City GA) | FM | CDBS backfill | 50kW ERP (Class C2), 64m HAAT |
 
+## AM groundwave curves: FCC's own Graphs 1-20, not GRWAVE
+
+`scripts/am_groundwave.py` used to shell out to the `grwave` Python package (`git+https://github.com/space-physics/grwave`), which compiles a 1985 Fortran file carrying an unresolved corporate copyright claim (`COPYRIGHT (C) GEC PLC 1985`) with no accompanying license anywhere in that repo - a real problem for a dependency a public CI workflow re-downloads and compiles weekly. Replaced with `scripts/fcc_groundwave_curves.py`: the actual FCC groundwave curves under 47 CFR 73.184/73.190 ("Graphs 1-20"), a public domain U.S. government work and literally the regulatory basis GRWAVE was only ever a numerical stand-in for.
+
+- The 20 graph PDFs (one per representative AM frequency) were downloaded from `fcc.gov/media/radio/am-groundwave-field-strength-graphs` - `fcc.gov` 403s a plain `curl`/`WebFetch` the same way other FCC hosts do (see below), so this needed a real browser. One-time acquisition, not a recurring fetch - these regulatory graphs don't change.
+- They're vector PDFs, not scans: the digitization script reads the embedded vector paths and axis-tick text directly (pixel-exact, not manually traced) to extract the 3 mS/m conductivity curve - this app's existing single "average US land" assumption - from each of the 20 frequency graphs. Cross-validated against the graphs' own printed "100 mV/m at 1 km" reference line (reproduced to within 1.2%) and against continuity between each graph's near-range (0.1-50km) and far-range (10-5000km) panels at their overlap point.
+- FCC's curves are normalized to "100 mV/m unattenuated at 1 km," not tied to a specific real power. Converting to real station kW uses the standard AM broadcast industry constant of 305.768 mV/m at 1 km per kW for a quarter-wave monopole (so FCC's reference corresponds to ~107 W) - sourced from two independent broadcast-engineering references, not derived from first principles.
+- **This produces materially different AM range numbers than the old GRWAVE-based curve** - not a rounding-level change. Cross-checking WABC (770kHz, 50kW) at 20 dBu: 405km (old) vs 434km (new), a modest 7% shift; but at higher thresholds the old GRWAVE curve simply never reached values above ~55 dBu-equivalent within its computed range (coming back `null`), while the new FCC-curve-based numbers reach cleanly up to 80 dBu (e.g. WABC city-grade/70dBu range: undefined under the old model, ~57km under the new one). The two curves almost certainly assume different reference antennas internally (GRWAVE models a generic near-ground theoretical source per its `TRANSMITTER_HEIGHT_M = 0`; FCC's graphs are calibrated to a real efficient broadcast tower) - this was a known, accepted tradeoff when making the switch, not an oversight, but it means stations will show as receivable at meaningfully larger radii at high signal-strength thresholds than they did before.
+
 ## Deliberately deferred, not forgotten
 
-- **No terrain-aware propagation.** AM uses one national-average ground conductivity assumption (ITU-R P.368 "medium dry ground" reference constants) rather than FCC's real M3 conductivity map. This systematically *understates* range for stations actually sited on high-conductivity ground (e.g. WABC's real Meadowlands marsh site) and overstates it for stations on poor ground.
+- **No terrain-aware propagation.** AM uses one national-average ground conductivity assumption (FCC's own 3 mS/m standard curve, see above) rather than FCC's real M3 conductivity map. This systematically *understates* range for stations actually sited on high-conductivity ground (e.g. WABC's real Meadowlands marsh site) and overstates it for stations on poor ground.
 - **No directional antenna modeling.** Every station is treated as omnidirectional for reception purposes, even though the data carries a `directional` flag per station (currently unused by the frontend).
 - **No AM nighttime skywave/DX modeling.** Out of scope by design - flagged in the UI disclaimer text, not modeled.
 - **No failure alerting** on the scheduled workflow - if FCC changes their file layout or Akamai tightens further, the weekly run just silently fails until someone checks the Actions tab.

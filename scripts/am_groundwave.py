@@ -1,43 +1,42 @@
 """Precompute AM groundwave range at a set of field-strength thresholds,
-using the real ITU-R P.368 reference algorithm (GRWAVE) rather than a
-hand-fit approximation - the FCC's own AM groundwave method (47 CFR
-73.184) is graphical/tabular, not a formula, so there's no "correct"
-closed-form equation to implement; GRWAVE is the actual numerical
-method the curves themselves are derived from.
+using FCC's own published groundwave curves (47 CFR 73.184/73.190,
+"Graphs 1-20") rather than a hand-fit approximation - the FCC's AM
+groundwave method is graphical/tabular, not a formula, so there's no
+"correct" closed-form equation to implement. These are the actual
+regulatory curves broadcast engineers use for this exact calculation,
+digitized directly from FCC's own PDFs (see fcc_groundwave_curves.py) -
+a public domain U.S. government work, unlike the third-party Fortran
+package (`grwave`, unresolved 1985 corporate copyright, no accompanying
+license) this module depended on previously.
 
-This runs at build time (not in the browser - GRWAVE is Fortran, no JS
-port exists) using a single assumed "average US land" ground constant
-pair, not a real conductivity map - that's the v1 simplification. A
-terrain-aware upgrade would swap this for FCC's M3 conductivity map,
-computed per station's actual site.
+Uses a single assumed "average US land" ground conductivity (3 mS/m,
+matching one of FCC's standard labeled curves), not a real conductivity
+map - that's the v1 simplification. A terrain-aware upgrade would swap
+this for FCC's M3 conductivity map, computed per station's actual site.
 
 Field strength is exactly proportional to sqrt(power) for fixed
-frequency/ground/geometry (linear system), so this computes one
-reference curve per distinct AM frequency at a reference power, then
-scales per station - avoiding one GRWAVE run per station.
+frequency/ground/geometry (linear system), so the digitized curves are
+precomputed once per distinct AM frequency at a 1 kW reference, then
+scaled per station by actual power - avoiding any need to recompute per
+station.
 
-Known gap: the curve's closest computed point is 10km out (DSTEP_KM's
-first step), so very high thresholds (>=~60 dBu for a typical station)
-that are only crossed within 10km of the transmitter come back as null
-even though they're obviously true in reality - not a practical concern
-for "can I receive this station" at any normal distance, but worth
-knowing if these numbers ever get used for something near-field.
+Known gap: the digitized curve's closest point is ~5km out, so very
+high thresholds (>=~60 dBu for a typical station) that are only crossed
+within 5km of the transmitter come back as null even though they're
+obviously true in reality - not a practical concern for "can I receive
+this station" at any normal distance, but worth knowing if these
+numbers ever get used for something near-field.
 """
 import math
 
-from grwave import grwave
+import fcc_groundwave_curves
 
-# ITU-R P.368's standard "medium dry ground" reference constants -
-# a commonly cited stand-in for "average" US land in the absence of a
-# real per-site conductivity value.
+# FCC's standard labeled ground conductivity used for the digitized
+# curve (see fcc_groundwave_curves.py) - a commonly cited stand-in for
+# "average" US land in the absence of a real per-site value.
 GROUND_SIGMA_S_M = 3e-3
-GROUND_EPSILON = 15
 
 REFERENCE_POWER_W = 1000.0  # 1 kW reference; scale by sqrt(actual/ref)
-RECEIVER_HEIGHT_M = 2.0
-TRANSMITTER_HEIGHT_M = 0.0  # groundwave is a surface effect; height barely matters at MF
-DMAX_KM = 500
-DSTEP_KM = 5
 
 # Thresholds to precompute, in dBu (dB above 1 uV/m) - same unit FM
 # uses, so the frontend can expose one unified threshold control.
@@ -45,33 +44,13 @@ THRESHOLDS_DBU = list(range(20, 85, 5))
 
 
 def reference_curve_km_vs_dbu(freq_khz):
-    """Run GRWAVE once for this frequency at the reference power.
-    Returns sorted list of (distance_km, field_strength_dbu).
-
-    grwave's "fs" column is already field strength in dBu (dB above
-    1 uV/m) at the given txwatt - not mV/m as an early draft of this
-    module assumed (verified against raw output: e.g. ~42 dBu at 10km
-    for 1kW/770kHz over medium-dry ground, decaying smoothly to ~0 dBu
-    around 470km - a physically sane curve, whereas treating those
-    numbers as mV/m and reconverting produced an inflated, saturated
-    curve that never dropped below any realistic threshold).
+    """Look up FCC's digitized groundwave curve for this frequency at
+    the reference power. Returns sorted list of (distance_km,
+    field_strength_dbu), interpolated between FCC's nearest two
+    representative frequency graphs when freq_khz doesn't land exactly
+    on one of the 20.
     """
-    df = grwave({
-        "freqMHz": freq_khz / 1000.0,
-        "sigma": GROUND_SIGMA_S_M,
-        "epslon": GROUND_EPSILON,
-        "dmax": DMAX_KM,
-        "hrr": RECEIVER_HEIGHT_M,
-        "htt": TRANSMITTER_HEIGHT_M,
-        "dstep": DSTEP_KM,
-        "txwatt": REFERENCE_POWER_W,
-    })
-    points = []
-    for dist_km, row in df.iterrows():
-        if dist_km > 0:
-            points.append((float(dist_km), float(row["fs"])))
-    points.sort()
-    return points
+    return fcc_groundwave_curves.curve_km_vs_dbu(freq_khz)
 
 
 def range_at_thresholds(reference_points, power_kw):
@@ -106,6 +85,6 @@ def range_at_thresholds(reference_points, power_kw):
         if found is not None:
             ranges[threshold] = round(found, 1)
         elif prev_fs >= target_ref_dbu:
-            # never dropped below threshold within DMAX_KM
-            ranges[threshold] = DMAX_KM
+            # never dropped below threshold within the digitized curve
+            ranges[threshold] = reference_points[-1][0]
     return ranges

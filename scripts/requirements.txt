@@ -1,5 +1,2 @@
 playwright==1.62.0
 openlocationcode==1.0.1
-pandas
-numpy
-grwave @ git+https://github.com/space-physics/grwave
