@@ -37,22 +37,25 @@ export function encode4(lat, lon) {
 
 const KM_PER_DEGREE_LAT = 111.0;
 
-// Every 4-char-prefix cell is exactly 1 degree latitude tall, and
-// (1 degree / cos(latitude)) wide in longitude - so cells narrow
-// toward the poles. Returns the set of prefixes covering a
-// radiusKm circle around (lat, lon).
+// Every 4-char-prefix cell is exactly 1 *actual* degree of latitude and
+// 1 *actual* degree of longitude - cell boundaries sit on whole-degree
+// lines regardless of latitude (that's why they narrow in physical km
+// toward the poles, rather than staying square). So neighbor cells must
+// be sampled at 1-degree steps to land on adjacent cells; only the
+// *number* of lon steps needed to cover a given radius should account
+// for longitude degrees getting physically narrower at higher latitudes.
+// (A cosine-scaled step here previously overshot by more than a degree
+// per step at mid latitudes and could jump clean over the cell
+// immediately next to the search point - see WBZ/Billerica regression.)
 export function neighborCodes(lat, lon, radiusKm) {
-  const latStepDeg = 1;
-  const lonStepDeg = 1 / Math.max(Math.cos((lat * Math.PI) / 180), 0.1);
-
   const latCells = Math.ceil(radiusKm / KM_PER_DEGREE_LAT);
   const lonCells = Math.ceil(radiusKm / (KM_PER_DEGREE_LAT * Math.cos((lat * Math.PI) / 180)));
 
   const codes = new Set();
   for (let i = -latCells; i <= latCells; i++) {
     for (let j = -lonCells; j <= lonCells; j++) {
-      const sampleLat = lat + i * latStepDeg;
-      const sampleLon = lon + j * lonStepDeg;
+      const sampleLat = lat + i;
+      const sampleLon = lon + j;
       if (sampleLat < -90 || sampleLat > 90) continue;
       codes.add(encode4(sampleLat, sampleLon));
     }
