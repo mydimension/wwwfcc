@@ -94,6 +94,29 @@ header h1 {
   width: 100%;
 }
 
+.control select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.9rem;
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 16px;
+}
+
+.checkbox-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  margin-bottom: 0;
+}
+
 .search-row {
   display: flex;
   gap: 6px;

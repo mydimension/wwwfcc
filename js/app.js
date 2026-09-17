@@ -34,6 +34,9 @@ const state = {
   thresholdDbu: THRESHOLD_DEFAULT_DBU,
   isDaytime: isLikelyDaytime(),
   manifest: null, // Set of partition codes that actually exist, or null if unknown
+  showAM: true,
+  showFM: true,
+  formatFilter: "", // "" = no filter; otherwise a specific format string from a station's `formats` list
 };
 
 // Known ahead of time so we don't 404 on every one of the many empty
@@ -72,6 +75,9 @@ const dayNightInput = document.getElementById("day-night");
 const locateBtn = document.getElementById("locate-btn");
 const locationSearchForm = document.getElementById("location-search-form");
 const locationSearchInput = document.getElementById("location-search");
+const bandAmInput = document.getElementById("band-am");
+const bandFmInput = document.getElementById("band-fm");
+const formatFilterSelect = document.getElementById("format-filter");
 
 thresholdInput.min = THRESHOLD_MIN_DBU;
 thresholdInput.max = THRESHOLD_MAX_DBU;
@@ -86,6 +92,18 @@ thresholdInput.addEventListener("input", () => {
 });
 dayNightInput.addEventListener("change", () => {
   state.isDaytime = dayNightInput.checked;
+  render();
+});
+bandAmInput.addEventListener("change", () => {
+  state.showAM = bandAmInput.checked;
+  render();
+});
+bandFmInput.addEventListener("change", () => {
+  state.showFM = bandFmInput.checked;
+  render();
+});
+formatFilterSelect.addEventListener("change", () => {
+  state.formatFilter = formatFilterSelect.value;
   render();
 });
 locateBtn.addEventListener("click", () => locate());
@@ -185,7 +203,7 @@ function render() {
     return;
   }
 
-  const results = state.stations
+  const receivable = state.stations
     .map((station) =>
       Object.assign(
         { station },
@@ -194,6 +212,18 @@ function render() {
     )
     .filter((r) => r.receivable)
     .sort((a, b) => a.distKm - b.distKm);
+
+  const bandFiltered = receivable.filter(
+    (r) =>
+      (r.station.service === "AM" && state.showAM) ||
+      (r.station.service === "FM" && state.showFM)
+  );
+
+  updateFormatOptions(bandFiltered);
+
+  const results = state.formatFilter
+    ? bandFiltered.filter((r) => r.station.formats?.includes(state.formatFilter))
+    : bandFiltered;
 
   const amCount = results.filter((r) => r.station.service === "AM").length;
   const fmCount = results.length - amCount;
@@ -210,7 +240,9 @@ function render() {
       fillOpacity: 0.8,
       weight: 1,
     });
-    const formatLine = s.formats ? `<br>${s.formats.join(", ")}` : "";
+    const formatLine = s.formats
+      ? `<br><span class="muted">${s.formats.join(", ")}</span>`
+      : "";
     marker.bindPopup(
       `<strong>${s.callsign}</strong> ${s.service} ${s.frequency}<br>` +
         `${s.city}, ${s.state}<br>` +
@@ -231,6 +263,34 @@ function render() {
     });
     listEl.appendChild(li);
   }
+}
+
+function updateFormatOptions(bandFiltered) {
+  const formats = new Set();
+  for (const r of bandFiltered) {
+    for (const f of r.station.formats ?? []) formats.add(f);
+  }
+  const sorted = [...formats].sort((a, b) => a.localeCompare(b));
+
+  if (!state.formatFilter || formats.has(state.formatFilter)) {
+    // Rebuild in place only when the option set actually changed, so an
+    // open dropdown or the current selection isn't disturbed every render.
+    const current = [...formatFilterSelect.options].slice(1).map((o) => o.value);
+    if (JSON.stringify(current) === JSON.stringify(sorted)) return;
+  } else {
+    // The previously selected format no longer appears in view (band
+    // toggled off, or the map moved) - fall back to "All formats".
+    state.formatFilter = "";
+  }
+
+  formatFilterSelect.innerHTML = '<option value="">All formats</option>';
+  for (const f of sorted) {
+    const opt = document.createElement("option");
+    opt.value = f;
+    opt.textContent = f;
+    formatFilterSelect.appendChild(opt);
+  }
+  formatFilterSelect.value = state.formatFilter;
 }
 
 function setStatus(text) {

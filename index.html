@@ -60,6 +60,21 @@
         <div class="muted">AM stations often reduce power (or go off air) at night to protect other stations on the same frequency.</div>
       </div>
 
+      <div class="control">
+        <label>Band</label>
+        <div class="checkbox-row">
+          <label><input type="checkbox" id="band-am" checked> AM</label>
+          <label><input type="checkbox" id="band-fm" checked> FM</label>
+        </div>
+      </div>
+
+      <div class="control">
+        <label for="format-filter">Format</label>
+        <select id="format-filter">
+          <option value="">All formats</option>
+        </select>
+      </div>
+
       <p id="status" class="status"></p>
 
       <ul id="station-list"></ul>
