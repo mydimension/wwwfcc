@@ -54,7 +54,7 @@ async def discover_date_folder(page):
     return m.group(1)
 
 
-async def download_table(page, date_folder, table):
+async def download_table(page, date_folder, table, response_status):
     url = f"{BASE}/dataentry/api/download/dbfile/{date_folder}/{table}.zip"
     zip_path = os.path.join(OUT_DIR, f"{table}.zip")
     async with page.expect_download(timeout=120000) as dl_info:
@@ -62,6 +62,20 @@ async def download_table(page, date_folder, table):
             await page.goto(url, timeout=120000)
         except Exception:
             pass
+        # Fail fast instead of waiting out the full download timeout: FCC
+        # generates tables progressively through the day (confirmed
+        # 2026-09-17 12:30 UTC - 8 of 15 tables already had real data while
+        # the other 7, including the core `facility`/`app_location` ones,
+        # 404'd because they don't exist yet), and a 404 will never turn
+        # into a download event, so waiting the full 120s per table for
+        # several tables in a row made one run take 15 minutes just to
+        # fail.
+        status = response_status.get(url)
+        if status is not None and status != 200:
+            raise RuntimeError(
+                f"{table}.zip for {date_folder} not available yet "
+                f"(HTTP {status}) - FCC hasn't generated this table yet"
+            )
     download = await dl_info.value
     # save_as(), not path() + shutil.copy(): path() points at Playwright's
     # own internal artifact file, which on the GitHub Actions Linux runner
@@ -107,18 +121,20 @@ async def main():
         browser = await p.chromium.launch(headless=True, channel="chromium")
         context = await browser.new_context(accept_downloads=True)
         page = await context.new_page()
-        page.on(
-            "response",
-            lambda r: print(f"  response {r.status} {r.url}")
-            if "/api/download/dbfile/" in r.url
-            else None,
-        )
+        response_status = {}
+
+        def track_response(r):
+            if "/api/download/dbfile/" in r.url:
+                response_status[r.url] = r.status
+                print(f"  response {r.status} {r.url}")
+
+        page.on("response", track_response)
         date_folder = await discover_date_folder(page)
         print(f"Using dump date folder: {date_folder}")
         failures = []
         for table in TABLES:
             try:
-                await download_table(page, date_folder, table)
+                await download_table(page, date_folder, table, response_status)
             except Exception as e:
                 print(f"FAILED {table}: {e!r}")
                 failures.append(table)
