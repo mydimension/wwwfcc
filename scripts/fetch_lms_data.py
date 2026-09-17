@@ -76,7 +76,15 @@ async def download_table(page, date_folder, table):
 async def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        # channel="chromium" forces the full Chrome-for-Testing binary
+        # instead of Playwright's default "headless shell" (the lightweight
+        # binary chromium.launch() has used automatically since ~1.45 when
+        # no channel is given). Confirmed root cause of a CI-only failure
+        # (2026-09-17): headless shell downloaded this same URL fine on
+        # macOS locally but produced FileNotFoundError on every table on
+        # the Linux GitHub Actions runner - `playwright install --with-deps
+        # chromium` already fetches both binaries, so this costs nothing.
+        browser = await p.chromium.launch(headless=True, channel="chromium")
         context = await browser.new_context(accept_downloads=True)
         page = await context.new_page()
         date_folder = await discover_date_folder(page)
