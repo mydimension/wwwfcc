@@ -34,6 +34,9 @@ jobs:
       - name: Fetch CDBS tables (frozen legacy backfill)
         run: python scripts/fetch_cdbs_data.py
 
+      - name: Fetch station format tags (Wikidata, optional enrichment)
+        run: python scripts/fetch_radio_formats.py
+
       - name: Parse and partition into Plus Code files
         run: python scripts/parse_stations.py
 

@@ -38,6 +38,12 @@ Directionality and terrain are NOT modeled (v1 simple reception model) -
 stations are emitted with a `directional` flag so the frontend/model can
 at least flag the simplification, but the pattern geometry itself is
 never used here.
+
+Format/genre tags (a `formats` list, only present when known) come from
+a separate optional enrichment: see fetch_radio_formats.py and
+load_radio_formats() below. This is the FCC's data model plus one
+bolted-on field from Wikidata, not an FCC-provided attribute - the FCC
+doesn't track programming format at all.
 """
 import json
 import os
@@ -49,6 +55,7 @@ import am_groundwave
 
 LMS_DIR = os.environ.get("LMS_RAW_DIR", "raw_lms")
 CDBS_DIR = os.environ.get("CDBS_RAW_DIR", "raw_cdbs")
+WIKIDATA_DIR = os.environ.get("WIKIDATA_RAW_DIR", "raw_wikidata")
 OUT_DIR = os.environ.get("STATION_OUT_DIR", "data/plus4")
 
 ACTIVE_STATUSES = {"LICEN", "LICRP"}
@@ -213,6 +220,18 @@ def load_cdbs_fm_eng_data():
     return idx
 
 
+def load_radio_formats():
+    """facility_id -> list of format/genre strings, from Wikidata (see
+    fetch_radio_formats.py). Optional enrichment - only ~18% of stations
+    have a format recorded there, and the fetch step itself may have been
+    skipped or failed, so a missing file just means no format data."""
+    path = os.path.join(WIKIDATA_DIR, "radio_formats.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        return json.load(f)
+
+
 # --------------------------------------------------------------------------
 # Per-station resolution
 # --------------------------------------------------------------------------
@@ -366,6 +385,10 @@ def main():
     cdbs_am_ant_sys_idx = load_cdbs_am_ant_sys()
     cdbs_fm_eng_idx = load_cdbs_fm_eng_data()
 
+    print("Loading Wikidata format enrichment (if present)...")
+    radio_formats = load_radio_formats()
+    print(f"  {len(radio_formats)} facility IDs with format data")
+
     partitions = defaultdict(list)
     stats = {"am_lms": 0, "am_cdbs": 0, "am_miss": 0,
               "fm_lms": 0, "fm_cdbs": 0, "fm_miss": 0}
@@ -399,6 +422,9 @@ def main():
             "directional": resolved["directional"],
             "source": resolved["source"],
         }
+        formats = radio_formats.get(facility["facility_id"])
+        if formats:
+            record["formats"] = formats
         if facility["service"] == "AM":
             record["power_day_kw"] = resolved["power_day_kw"]
             record["power_night_kw"] = resolved["power_night_kw"]

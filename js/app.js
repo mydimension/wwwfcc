@@ -210,16 +210,20 @@ function render() {
       fillOpacity: 0.8,
       weight: 1,
     });
+    const formatLine = s.formats ? `<br>${s.formats.join(", ")}` : "";
     marker.bindPopup(
       `<strong>${s.callsign}</strong> ${s.service} ${s.frequency}<br>` +
         `${s.city}, ${s.state}<br>` +
-        `${r.distKm.toFixed(1)} km away`
+        `${r.distKm.toFixed(1)} km away${formatLine}`
     );
     marker.addTo(stationLayer);
 
+    const formatSpan = s.formats
+      ? ` <span class="muted">(${s.formats.join(", ")})</span>`
+      : "";
     const li = document.createElement("li");
     li.innerHTML = `<span class="dot" style="background:${color}"></span>` +
-      `<strong>${s.callsign}</strong> ${s.frequency} ${s.service} ` +
+      `<strong>${s.callsign}</strong> ${s.frequency} ${s.service}${formatSpan} ` +
       `<span class="muted">${r.distKm.toFixed(0)} km · ${s.city}, ${s.state}</span>`;
     li.addEventListener("click", () => {
       map.setView([s.lat, s.lon], 10);
