@@ -64,7 +64,17 @@ async def download_table(page, date_folder, table):
         except Exception:
             pass
     download = await dl_info.value
+    failure = await download.failure()
     tmp_path = await download.path()
+    if failure or not tmp_path:
+        # Diagnostic for a CI-only failure (2026-09-17) where every table
+        # failed instantly with a bare FileNotFoundError from shutil.copy -
+        # this surfaces *why* download.path() came back empty/missing
+        # instead of guessing blind from the CI log alone.
+        raise RuntimeError(
+            f"download did not land a file for {table}: "
+            f"failure={failure!r} path={tmp_path!r} url={download.url!r}"
+        )
     shutil.copy(tmp_path, zip_path)
     with zipfile.ZipFile(zip_path) as zf:
         zf.extractall(OUT_DIR)
@@ -79,14 +89,21 @@ async def main():
         # channel="chromium" forces the full Chrome-for-Testing binary
         # instead of Playwright's default "headless shell" (the lightweight
         # binary chromium.launch() has used automatically since ~1.45 when
-        # no channel is given). Confirmed root cause of a CI-only failure
-        # (2026-09-17): headless shell downloaded this same URL fine on
-        # macOS locally but produced FileNotFoundError on every table on
-        # the Linux GitHub Actions runner - `playwright install --with-deps
-        # chromium` already fetches both binaries, so this costs nothing.
+        # no channel is given) - ruled out as the root cause of a CI-only
+        # download failure (2026-09-17: every table failed instantly with
+        # FileNotFoundError on the Linux Actions runner, but not locally on
+        # macOS with either binary), kept anyway since it's the more
+        # full-featured binary and `--with-deps chromium` already fetches
+        # both, so it costs nothing.
         browser = await p.chromium.launch(headless=True, channel="chromium")
         context = await browser.new_context(accept_downloads=True)
         page = await context.new_page()
+        page.on(
+            "response",
+            lambda r: print(f"  response {r.status} {r.url}")
+            if "/api/download/dbfile/" in r.url
+            else None,
+        )
         date_folder = await discover_date_folder(page)
         print(f"Using dump date folder: {date_folder}")
         failures = []
