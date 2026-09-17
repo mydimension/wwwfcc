@@ -15,7 +15,6 @@ This is raw intermediate data, not meant to be committed to the site.
 import asyncio
 import os
 import re
-import shutil
 import sys
 import zipfile
 from playwright.async_api import async_playwright
@@ -64,30 +63,29 @@ async def download_table(page, date_folder, table):
         except Exception:
             pass
     download = await dl_info.value
-    failure = await download.failure()
-    tmp_path = await download.path()
-    exists = tmp_path and os.path.exists(tmp_path)
-    print(f"  {table}: failure={failure!r} path={tmp_path!r} exists={exists}",
-          flush=True)
-    if failure or not tmp_path or not exists:
-        # Diagnostic for a CI-only failure (2026-09-17): download.failure()
-        # is None and download.path() returns a non-empty path, but the
-        # path doesn't exist on disk when shutil.copy tries to read it -
-        # dumping the actual path plus a directory listing since guessing
-        # blind from a bare FileNotFoundError got two dead ends already.
-        if tmp_path:
-            parent = os.path.dirname(tmp_path)
-            try:
-                print(f"  ls {parent}: {os.listdir(parent)}", flush=True)
-            except OSError as e:
-                print(f"  ls {parent} failed: {e!r}", flush=True)
-        raise RuntimeError(
-            f"download did not land a file for {table}: "
-            f"failure={failure!r} path={tmp_path!r} exists={exists} "
-            f"url={download.url!r}"
-        )
-    shutil.copy(tmp_path, zip_path)
+    # save_as(), not path() + shutil.copy(): path() points at Playwright's
+    # own internal artifact file, which on the GitHub Actions Linux runner
+    # (never reproduced on macOS) could vanish in under a millisecond
+    # between an os.path.exists() check and shutil.copy() opening it -
+    # confirmed by direct evidence (2026-09-17): exists() returned True and
+    # the very next line's copy still raised ENOENT on that same path.
+    # save_as() is Playwright's own recommended way to persist a download
+    # and isn't subject to that race.
+    await download.save_as(zip_path)
     with zipfile.ZipFile(zip_path) as zf:
+        if not zf.namelist():
+            # FCC publishes the dated dump folder (and a placeholder zip
+            # per table) before that day's tables actually finish
+            # generating server-side - confirmed 2026-09-17: every table
+            # came back as a valid-but-empty 22-byte zip early in the UTC
+            # day, for a folder that had real 42-251MB files as of the
+            # previous run 4 days earlier. Not a fetch bug - just too early
+            # relative to FCC's own job; retry later or wait for the
+            # Sunday 09:00 UTC schedule.
+            raise RuntimeError(
+                f"{table}.zip for {date_folder} is empty (0 entries) - "
+                "FCC's dump for today likely hasn't finished generating yet"
+            )
         zf.extractall(OUT_DIR)
     os.remove(zip_path)
     dat_path = os.path.join(OUT_DIR, f"{table}.dat")
