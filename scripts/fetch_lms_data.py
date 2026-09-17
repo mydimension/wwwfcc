@@ -66,14 +66,25 @@ async def download_table(page, date_folder, table):
     download = await dl_info.value
     failure = await download.failure()
     tmp_path = await download.path()
-    if failure or not tmp_path:
-        # Diagnostic for a CI-only failure (2026-09-17) where every table
-        # failed instantly with a bare FileNotFoundError from shutil.copy -
-        # this surfaces *why* download.path() came back empty/missing
-        # instead of guessing blind from the CI log alone.
+    exists = tmp_path and os.path.exists(tmp_path)
+    print(f"  {table}: failure={failure!r} path={tmp_path!r} exists={exists}",
+          flush=True)
+    if failure or not tmp_path or not exists:
+        # Diagnostic for a CI-only failure (2026-09-17): download.failure()
+        # is None and download.path() returns a non-empty path, but the
+        # path doesn't exist on disk when shutil.copy tries to read it -
+        # dumping the actual path plus a directory listing since guessing
+        # blind from a bare FileNotFoundError got two dead ends already.
+        if tmp_path:
+            parent = os.path.dirname(tmp_path)
+            try:
+                print(f"  ls {parent}: {os.listdir(parent)}", flush=True)
+            except OSError as e:
+                print(f"  ls {parent} failed: {e!r}", flush=True)
         raise RuntimeError(
             f"download did not land a file for {table}: "
-            f"failure={failure!r} path={tmp_path!r} url={download.url!r}"
+            f"failure={failure!r} path={tmp_path!r} exists={exists} "
+            f"url={download.url!r}"
         )
     shutil.copy(tmp_path, zip_path)
     with zipfile.ZipFile(zip_path) as zf:

@@ -29,7 +29,7 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Fetch LMS tables (current data, refreshed daily upstream)
-        run: python scripts/fetch_lms_data.py
+        run: python -u scripts/fetch_lms_data.py
 
       - name: Fetch CDBS tables (frozen legacy backfill)
         run: python scripts/fetch_cdbs_data.py
