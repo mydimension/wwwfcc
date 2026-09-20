@@ -210,8 +210,10 @@ button:hover {
     width: 100%;
     max-width: 100%;
     max-height: 45vh;
+    flex: none;
   }
   #map {
+    flex: none;
     height: 55vh;
   }
 }
