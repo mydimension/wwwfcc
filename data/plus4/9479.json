@@ -1,1 +1,1 @@
-[{"callsign":"KHYG-FM","service":"FM","frequency":"91.1","city":"HYDABURG","state":"AK","lat":55.207139,"lon":-132.825806,"directional":false,"source":"lms","erp_kw":0.026,"haat_m":null}]
+[{"callsign":"KHYG-FM","service":"FM","frequency":"91.1","city":"HYDABURG","state":"AK","lat":55.207139,"lon":-132.825806,"directional":false,"source":"lms","formats":["variety"],"erp_kw":0.026,"haat_m":null}]
